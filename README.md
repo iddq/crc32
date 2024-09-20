@@ -26,6 +26,7 @@ positional arguments:
                find a patch that causes the CRC32 checksum to become a desired value
     undo (u)   rewind a CRC32 checksum
     calc (c)   calculate the CRC32 checksum
+    combine    combine CRC32 checksums
 
 options:
   -h, --help   show this help message and exit
