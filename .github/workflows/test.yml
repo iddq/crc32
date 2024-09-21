@@ -39,7 +39,7 @@ jobs:
     - name: Install Coveralls
       run: pip3 install coveralls
     - name: Test
-      run: coverage run --branch --source=crc32 test.py
+      run: coverage run --branch --source=crc32 -m unittest discover
     - name: Upload coverage
       run: coveralls --service=github
       env:
