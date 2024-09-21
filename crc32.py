@@ -210,14 +210,14 @@ def reverse_callback(args):
             checksum, 'OK' if checksum == desired else 'ERROR'), file=args.outfile)
 
     def print_permitted_reverse(patch):
-            patches = crc32_reverse.find_reverse(desired, crc32.calc(patch, accum))
-            for last_4_bytes in patches:
-                if all(p in permitted_characters for p in last_4_bytes):
-                    patch2 = patch + last_4_bytes
-                    print('{} bytes: {} ({})'.format(
-                        len(patch2),
-                        ''.join(map(chr, patch2)),
-                        'OK' if crc32.calc(patch2, accum) == desired else 'ERROR'), file=args.outfile)
+        patches = crc32_reverse.find_reverse(desired, crc32.calc(patch, accum))
+        for last_4_bytes in patches:
+            if all(p in permitted_characters for p in last_4_bytes):
+                patch2 = patch + last_4_bytes
+                print('{} bytes: {} ({})'.format(
+                    len(patch2),
+                    ''.join(map(chr, patch2)),
+                    'OK' if crc32.calc(patch2, accum) == desired else 'ERROR'), file=args.outfile)
 
     # 5-byte alphanumeric patches
     for i in permitted_characters:
