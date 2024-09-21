@@ -26,9 +26,9 @@ class CRC32Reverse:
             for i in range(256)
         )
 
-    def rewind(self, data, accum = 0):
+    def rewind(self, data, accum = 0) -> set[int]:
         if not data:
-            return (accum,)
+            return { accum }
         stack = [(len(data), ~accum)]
         solutions = set()
         while stack:
