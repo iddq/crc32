@@ -1,5 +1,3 @@
-from collections.abc import Iterable
-
 class CRC32:
     def __init__(self, poly: int):
         def table_value(i: int) -> int:
@@ -9,16 +7,17 @@ class CRC32:
 
         self.table = tuple(map(table_value, range(256)))
 
-    def calc(self, data: Iterable[int], accum = 0):
+    def calc(self, data: bytes, accum = 0):
         accum = ~accum
         for b in data:
             accum = self.table[(accum ^ b) & 0xFF] ^ ((accum >> 8) & 0x00FFFFFF)
         accum = ~accum
         return accum & 0xFFFFFFFF
 
-class CRC32Reverse:
-    def __init__(self, crc32: CRC32):
-        self.table = crc32.table
+class CRC32Reverse(CRC32):
+    def __init__(self, poly: int):
+        super().__init__(poly)
+
         self.table_reverse = tuple(
             tuple(j
                   for j in range(256)
@@ -26,7 +25,7 @@ class CRC32Reverse:
             for i in range(256)
         )
 
-    def rewind(self, data, accum = 0) -> set[int]:
+    def rewind(self, data: bytes, accum: int) -> set[int]:
         if not data:
             return { accum }
         stack = [(len(data), ~accum)]
@@ -43,24 +42,24 @@ class CRC32Reverse:
                     solutions.add((~prevCRC) & 0xFFFFFFFF)
         return solutions
 
-    def find_reverse(self, desired: int, accum = 0):
+    def find_reverse(self, desired: int, accum = 0) -> set[bytes]:
         solutions = set()
         accum = ~accum
-        stack = [(~desired,)]
+        stack = [(~desired, b'')]
         while stack:
-            node = stack.pop()
-            for j in self.table_reverse[(node[0] >> 24) & 0xFF]:
-                if len(node) == 4:
+            v, s = stack.pop()
+            for j in self.table_reverse[(v >> 24) & 0xFF]:
+                next_str = s + bytes([j])
+                if len(next_str) == 4:
                     a = accum
-                    data = []
-                    node = node[1:] + (j,)
+                    data = bytearray()
                     for i in range(3, -1, -1):
-                        data.append((a ^ node[i]) & 0xFF)
+                        data.append((a ^ next_str[i]) & 0xFF)
                         a >>= 8
-                        a ^= self.table[node[i]]
-                    solutions.add(tuple(data))
+                        a ^= self.table[next_str[i]]
+                    solutions.add(bytes(data))
                 else:
-                    stack.append(((node[0] ^ self.table[j]) << 8,) + node[1:] + (j,))
+                    stack.append(((v ^ self.table[j]) << 8, next_str))
         return solutions
 
 
@@ -70,11 +69,11 @@ class Matrix:
         self.matrix = matrix
 
     @staticmethod
-    def identity():
+    def identity() -> 'Matrix':
         return Matrix(tuple(1 << i for i in range(32)))
 
     @staticmethod
-    def zero_operator(poly):
+    def zero_operator(poly: int) -> 'Matrix':
         m = [poly]
         n = 1
         for _ in range(31):
@@ -82,7 +81,7 @@ class Matrix:
             n <<= 1
         return Matrix(tuple(m))
 
-    def multiply_vector(self, v, s = 0):
+    def multiply_vector(self, v: int, s = 0) -> int:
         for c in self.matrix:
             s ^= c & -(v & 1)
             v >>= 1
@@ -90,10 +89,13 @@ class Matrix:
                 break
         return s
 
-    def mul(self, matrix):
+    def mul(self, matrix: 'Matrix') -> 'Matrix':
         return Matrix(tuple(map(self.multiply_vector, matrix.matrix)))
 
-def combine(c1, c2, l2, n, poly):
+    def sqr(self) -> 'Matrix':
+        return self.mul(self)
+
+def combine(c1: int, c2: int, l2: int, n: int, poly: int) -> int:
     # The effect of feeding zero bits into the CRC32 state machine can be
     # represented by matrix multiplication, allowing exponentiation-by-squaring.
     #
@@ -113,12 +115,11 @@ def combine(c1, c2, l2, n, poly):
     # after A before B.
 
     m = Matrix.zero_operator(poly)
-    m = m.mul(m)
-    m = m.mul(m)
+    m = m.sqr().sqr()
 
     M = Matrix.identity()
     while l2:
-        m = m.mul(m)
+        m = m.sqr()
         if l2 & 1:
             M = m.mul(M)
         l2 >>= 1
@@ -140,13 +141,13 @@ def combine(c1, c2, l2, n, poly):
             break
 
         b = M.multiply_vector(b, b)
-        M = M.mul(M)
+        M = M.sqr()
 
     return c1
 
 # Tools
 
-def reverse_bits(x):
+def reverse_bits(x: int) -> int:
     # http://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
     # http://stackoverflow.com/a/20918545
     x = ((x & 0x55555555) << 1) | ((x & 0xAAAAAAAA) >> 1)
@@ -156,6 +157,6 @@ def reverse_bits(x):
     x = ((x & 0x0000FFFF) << 16) | ((x & 0xFFFF0000) >> 16)
     return x & 0xFFFFFFFF
 
-def reciprocal(poly):
+def reciprocal(poly: int) -> int:
     ''' Return the reciprocal polynomial of a reversed (lsbit-first) polynomial. '''
     return poly << 1 & 0xffffffff | 1

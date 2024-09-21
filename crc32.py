@@ -6,7 +6,7 @@ import sys
 
 from crc32 import CRC32, CRC32Reverse, combine, reverse_bits, reciprocal
 
-def get_poly(args):
+def get_poly(args) -> int:
     poly = parse_dword(args.poly)
     if args.msb:
         poly = reverse_bits(poly)
@@ -24,11 +24,11 @@ def get_poly(args):
 
 def get_input(args):
     if args.instr:
-        return tuple(args.instr.encode('utf-8'))
+        return args.instr.encode('utf-8')
     with args.infile as f:
-        return tuple(f.read())
+        return f.read()
 
-def parse_dword(x):
+def parse_dword(x: str) -> int:
     return int(x, 0) & 0xFFFFFFFF
 
 
@@ -191,10 +191,9 @@ def table_callback(args):
 
 def reverse_callback(args):
     permitted_characters = set(
-        map(ord, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890_'))  # \w
+        b'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890_')  # \w
 
-    crc32 = CRC32(get_poly(args))
-    crc32_reverse = CRC32Reverse(crc32)
+    crc32_reverse = CRC32Reverse(get_poly(args))
     # find reverse bytes
     desired = parse_dword(args.desired)
     accum = parse_dword(args.accum)
@@ -203,34 +202,33 @@ def reverse_callback(args):
     for patch in patches:
         text = ''
         if all(p in permitted_characters for p in patch):
-            text = '{}{}{}{} '.format(*map(chr, patch))
+            text = patch.decode() + ' '
         print('4 bytes: {}{{0x{:02x}, 0x{:02x}, 0x{:02x}, 0x{:02x}}}'.format(text, *patch), file=args.outfile)
-        checksum = crc32.calc(patch, accum)
+        checksum = crc32_reverse.calc(patch, accum)
         print('verification checksum: 0x{:08x} ({})'.format(
             checksum, 'OK' if checksum == desired else 'ERROR'), file=args.outfile)
 
-    def print_permitted_reverse(patch):
-        patches = crc32_reverse.find_reverse(desired, crc32.calc(patch, accum))
+    def print_permitted_reverse(patch: bytes):
+        patches = crc32_reverse.find_reverse(desired, crc32_reverse.calc(patch, accum))
         for last_4_bytes in patches:
             if all(p in permitted_characters for p in last_4_bytes):
                 patch2 = patch + last_4_bytes
                 print('{} bytes: {} ({})'.format(
                     len(patch2),
-                    ''.join(map(chr, patch2)),
-                    'OK' if crc32.calc(patch2, accum) == desired else 'ERROR'), file=args.outfile)
+                    patch2.decode(),
+                    'OK' if crc32_reverse.calc(patch2, accum) == desired else 'ERROR'), file=args.outfile)
 
     # 5-byte alphanumeric patches
     for i in permitted_characters:
-        print_permitted_reverse((i,))
+        print_permitted_reverse(bytes([i]))
     # 6-byte alphanumeric patches
     for i in permitted_characters:
         for j in permitted_characters:
-            print_permitted_reverse((i, j))
+            print_permitted_reverse(bytes([i, j]))
 
 
 def undo_callback(args):
-    crc32 = CRC32(get_poly(args))
-    crc32_reverse = CRC32Reverse(crc32)
+    crc32_reverse = CRC32Reverse(get_poly(args))
     # calculate checksum
     accum = parse_dword(args.accum)
     maxlen = int(args.len, 0)

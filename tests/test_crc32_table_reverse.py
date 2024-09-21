@@ -41,8 +41,7 @@ edb88320_reverse = (
 
 class CRC32TableReverse(unittest.TestCase):
     def test_table_reverse(self):
-        c = crc32.CRC32(0xedb88320)
-        crc32_reverse = crc32.CRC32Reverse(c)
+        crc32_reverse = crc32.CRC32Reverse(0xedb88320)
 
         # reverse table for 0xedb88320 only
         self.assertEqual(
