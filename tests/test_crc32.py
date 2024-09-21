@@ -1,13 +1,10 @@
-# Data tables for unit tests
-
-calc4 = (
-    # (hash, accum, byte1, byte2, byte3, byte4),
-    (0x00000000, 0x00000000, 0x9d, 0x0a, 0xd9, 0x6d),
-    (0x13371337, 0x00000000, 0x6c, 0x37, 0x8b, 0xf4),
-)
+import crc32
+import unittest
 
 calc = (
     # (hash, accum, str),
+    (0x00000000, 0x00000000, (0x9d, 0x0a, 0xd9, 0x6d)),
+    (0x13371337, 0x00000000, (0x6c, 0x37, 0x8b, 0xf4)),
     (0x00000000, 0x00000000, ''),
     (0xcbf43926, 0x00000000, '123456789'),
     (0x352441c2, 0x00000000, 'abc'),
@@ -40,3 +37,21 @@ calc = (
     (0x13371337, 0x00000000, 'soosMl'),
     (0x13371337, 0x00000000, 'tvhMgG'),
 )
+
+def to_bytes(data):
+    if isinstance(data, str):
+        return bytes(data, encoding='utf8')
+    return bytes(data)
+
+class Calc(unittest.TestCase):
+    def setUp(self):
+        self.crc32 = crc32.CRC32(0xedb88320)
+        self.crc32_reverse = crc32.CRC32Reverse(self.crc32)
+
+    def test_calc_rewind_reverse(self):
+        for c in calc:
+            b = to_bytes(c[2])
+            self.assertEqual(self.crc32.calc(b, c[1]), c[0])
+            self.assertSetEqual(self.crc32_reverse.rewind(b, c[0]), { c[1] })
+            if len(b) == 4:
+                self.assertSetEqual(self.crc32_reverse.find_reverse(*c[:2]), { c[2] })
