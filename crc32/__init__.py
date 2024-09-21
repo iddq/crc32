@@ -19,15 +19,12 @@ class CRC32:
 class CRC32Reverse:
     def __init__(self, crc32: CRC32):
         self.table = crc32.table
-
-        table_reverse = []
-        for i in range(256):
-            found = []
-            for j in range(256):
-                if self.table[j] >> 24 == i:
-                    found.append(j)
-            table_reverse.append(tuple(found))
-        self.table_reverse = tuple(table_reverse)
+        self.table_reverse = tuple(
+            tuple(j
+                  for j in range(256)
+                  if self.table[j] >> 24 == i)
+            for i in range(256)
+        )
 
     def rewind(self, data, accum = 0):
         if not data:
