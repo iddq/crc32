@@ -48,10 +48,16 @@ class Calc(unittest.TestCase):
         self.crc32 = crc32.CRC32(0xedb88320)
         self.crc32_reverse = crc32.CRC32Reverse(self.crc32)
 
-    def test_calc_rewind_reverse(self):
+    def test(self):
         for c in calc:
             b = to_bytes(c[2])
-            self.assertEqual(self.crc32.calc(b, c[1]), c[0])
+
+            checksum = self.crc32.calc(b, c[1])
+            self.assertEqual(checksum, c[0])
+
             self.assertSetEqual(self.crc32_reverse.rewind(b, c[0]), { c[1] })
+
             if len(b) == 4:
                 self.assertSetEqual(self.crc32_reverse.find_reverse(*c[:2]), { c[2] })
+
+            self.assertEqual(crc32.combine(c[1], checksum, len(b), 1009, 0xedb88320), self.crc32.calc(b * 1009, c[1]))
